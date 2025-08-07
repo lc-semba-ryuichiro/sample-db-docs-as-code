@@ -1,0 +1,26 @@
+{
+  "name": "sample-db-docs-as-code",
+  "version": "1.0.0",
+  "description": "データベースのドキュメンテーションを「Docs as Code」アプローチで管理するサンプルプロジェクトです。",
+  "type": "module",
+  "scripts": {
+    "db:serve": "docker compose -f docker/compose.yaml up -d",
+    "db:down": "docker compose -f docker/compose.yaml down -v",
+    "db:rebuild": "docker compose -f docker/compose.yaml down -v && docker compose -f docker/compose.yaml up -d",
+    "db:schema": "docker compose -f docker/compose.yaml up tbls",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "er:build": "pnpm dlx @liam-hq/cli erd build --format tbls --input docs/schema/schema.json --output-dir docs/out",
+    "er:serve": "pnpm dlx serve docs/out",
+    "sql:fix": "find ./sql -name '*.sql' -print0 | xargs -0 -I{} sh -c 'sql-formatter --fix --config .sql-formatter.json \"$1\"' _ {}"
+  },
+  "author": "lc-semba-ryuichiro",
+  "license": "MIT",
+  "devDependencies": {
+    "lefthook": "^1.12.2",
+    "sql-formatter": "^15.6.6",
+    "vitepress": "^1.6.4",
+    "vitepress-sidebar": "^1.33.0"
+  }
+}

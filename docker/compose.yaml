@@ -1,0 +1,61 @@
+services:
+
+  db:
+    container_name: local_mysql
+    image: mysql:9.4.0
+    platform: linux/amd64
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sample_rdb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: Password
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  flyway:
+    image: flyway/flyway:latest
+    container_name: flyway_migration
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ../sql:/flyway/sql
+    command: [
+      "-url=jdbc:mysql://db:3306/sample_rdb?allowPublicKeyRetrieval=true&useSSL=false",
+      "-user=user",
+      "-password=Password",
+      "-connectRetries=60",
+      "repair",
+      "migrate",
+      "info"
+    ]
+    restart: "no"
+    environment:
+      - FLYWAY_LOCATIONS=filesystem:sql/migration,filesystem:sql/seed/local
+
+  tbls:
+    container_name: tbls_container
+    build:
+      context: .
+      dockerfile: Dockerfile.tbls  
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    volumes:
+      - ../.tbls.yml:/work/.tbls.yml
+      - ../docs/schema:/work/schema
+      - ../excel:/work/excel
+    working_dir: /work
+    entrypoint: [""]
+    command:
+      - /bin/sh
+      - -c
+      - |
+        tbls doc --rm-dist &&
+        tbls out -t xlsx -o /work/excel/schema.xlsx
+    restart: "no"

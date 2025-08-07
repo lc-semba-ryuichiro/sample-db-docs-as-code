@@ -1,0 +1,35 @@
+FROM ghcr.io/k1low/tbls:v1.87.0
+
+ARG HG_VER=2.10.0
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN set -eux; \
+    # ── 1) Graphviz（Pango 対応版）と必須ツール ──
+    apt-get update -qq; \
+    apt-get install -y --no-install-recommends \
+        curl \
+        fontconfig \
+        graphviz \
+        unzip; \
+    \
+    # ── 2) HackGen Font を取得 & 展開 ──
+    HG_URL="https://github.com/yuru7/HackGen/releases/download/v${HG_VER}/HackGen_v${HG_VER}.zip"; \
+    curl -fsSL "$HG_URL" -o /tmp/hackgen.zip; \
+    mkdir -p /usr/share/fonts/opentype/hackgen; \
+    unzip -qq /tmp/hackgen.zip -d /usr/share/fonts/opentype/hackgen; \
+    rm /tmp/hackgen.zip; \
+    \
+    # ── 3) Pango 非対応 /usr/local/bin/dot を差し替え ──
+    rm -f /usr/local/bin/dot; \
+    ln -s /usr/bin/dot /usr/local/bin/dot; \
+    \
+    # ── 4) フォントキャッシュ生成 & クリーンアップ ──
+    fc-cache -fv; \
+    apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
+# gd バックエンドのフォールバック検索用
+ENV DOTFONTPATH=/usr/share/fonts/opentype/hackgen
+
+WORKDIR /work
+ENTRYPOINT ["tbls"]
+CMD ["--help"]

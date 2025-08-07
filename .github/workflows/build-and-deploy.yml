@@ -1,0 +1,117 @@
+name: Build and Deploy VitePress site to Pages
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+concurrency:
+  # 同じブランチに複数の push があれば、古いワークフローをキャンセルする
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+
+      - name: Install pnpm Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start Docker services
+        run: pnpm run db:serve
+
+      - name: Wait for services to be ready
+        run: |
+          echo "データベースとマイグレーションの完了を待機中..."
+          max_attempts=30
+          attempt=1
+          while [ $attempt -le $max_attempts ]; do
+            if [ "$(docker inspect -f '{{.State.Status}}' tbls_container 2>/dev/null)" = "exited" ] && \
+               [ "$(docker inspect -f '{{.State.ExitCode}}' tbls_container 2>/dev/null)" = "0" ]; then
+              echo "tbls document generation completed successfully"
+              break
+            fi
+            echo "Waiting for tbls to complete... (Attempt $attempt/$max_attempts)"
+            sleep 10
+            attempt=$((attempt + 1))
+          done
+          
+          if [ $attempt -gt $max_attempts ]; then
+            echo "tbls did not complete in time"
+            docker logs tbls_container
+            exit 1
+          fi
+
+      - name: Build ER
+        run: pnpm run er:build
+
+      - name: Build Documents
+        run: pnpm run docs:build
+
+      - name: Copy ER diagrams to VitePress dist
+        run: |
+          mkdir -p docs/.vitepress/dist/er
+          cp -r docs/out/* docs/.vitepress/dist/er/
+          # Fix relative paths in ER diagram HTML
+          sed -i 's|"./assets/|"/sample-db-docs-as-code/er/assets/|g' docs/.vitepress/dist/er/index.html
+
+      - name: Create .nojekyll file for GitHub Pages
+        run: touch docs/.vitepress/dist/.nojekyll
+
+      - name: Upload built site
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitepress-site
+          path: docs/.vitepress/dist/
+      - name: Upload Excel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: table-excel
+          path: excel/schema.xlsx
+          retention-days: 5 
+
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    name: Deploy
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Download built site
+        uses: actions/download-artifact@v4
+        with:
+          name: vitepress-site
+          path: .
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 

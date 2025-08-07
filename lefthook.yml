@@ -1,0 +1,15 @@
+# EXAMPLE USAGE:
+#
+#   Refer for explanation to following link:
+#   https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: false
+  jobs:
+    - name: format SQL
+      run: pnpm sql:fix
+      glob: "*.sql"
+
+    - name: build tables
+      run: pnpm tbls:build
+      glob: "*.tbls.yml|*.sql|docker/*"

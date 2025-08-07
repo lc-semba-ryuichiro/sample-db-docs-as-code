@@ -1,0 +1,85 @@
+docPath: schema
+# docPath: docs/schema # local 用
+
+dsn: mysql://user:Password@db:3306/sample_rdb
+# dsn: mysql://user:Password@localhost:3306/sample_rdb # local 用
+
+format:
+  # Markdown形式のテーブルの列幅を調整する
+  adjust: true
+  # テーブルリストと列の順序を並べ替える
+  sort: false
+  # テーブルの各行に連番を表示する
+  number: true
+  # インデックスページの「Tables」セクションにある各テーブルのコメントは、最初の二重改行（最初の段落）までのテキストが表示されます。
+  showOnlyFirstParagraph: false
+  # 値が存在しないテーブルの列を非表示にする
+  # Default is false
+  hideColumnsWithoutValues: false
+  # It can be boolean or array
+  # hideColumnsWithoutValues: ["Parents", "Children"]
+
+er:
+  # Skip generation of ER diagram
+  # Default is false
+  skip: false
+  # ER diagram image format (`png`, `jpg`, `svg`, `mermaid`)
+  # Default is `svg`
+  format: svg
+  # Add table/column comment to ER diagram
+  # Default is false
+  comment: true
+  # Hide relation definition from ER diagram
+  # Default is false
+  hideDef: false
+  # Show column settings in ER diagram. If this section is not set, all columns will be displayed (default).
+  showColumnTypes:
+    # Show related columns
+    related: true
+    # Show primary key columns
+    primary: true
+  # Distance between tables that display relations in the ER
+  # Default is 1
+  distance: 2
+  font: HackGen
+exclude:
+  - flyway_schema_history
+
+dict:
+  Tables: テーブル一覧
+  Description: 概要
+  Columns: カラム一覧
+  Indexes: INDEX一覧
+  Constraints: 制約一覧
+  Triggers: トリガー
+  Relations: ER図
+  Name: 名前
+  Comment: コメント
+  Type: タイプ
+  Default: デフォルト値
+  Children: 子テーブル
+  Parents: 親テーブル
+  Definition: 定義
+  Table Definition: テーブル定義
+
+relations:
+  - table: m_role
+    columns:
+      - role_id
+    parentTable: m_role_permission
+    parentColumns:
+      - role_id
+  - table: m_permission
+    columns:
+      - perm_id
+    parentTable: m_role_permission
+    parentColumns:
+      - perm_id
+
+viewpoints:
+  - name: 認可関連 ViewPoint
+    desc: 認可関連のテーブルをまとめた ViewPoint
+    tables:
+      - m_permission
+      - m_role
+      - m_role_permission
